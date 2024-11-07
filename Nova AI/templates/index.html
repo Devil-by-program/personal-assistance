@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Nova AI Assistant</title>
+</head>
+<body>
+    <!-- Video Background -->
+    <video autoplay loop muted id="background-video">
+        <source src="/static/your-video.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <audio id="background-audio" loop>
+        <source src="/static/your-audio.mp3" type="audio/mp3">
+        Your browser does not support the audio element.
+    </audio>
+
+
+
+    <div class="login">
+        <h1 class="h2">Nova AI Assistant</h1>
+        <div class="chat-box">
+            <div id="chat-output"></div>
+            <div class="text_area">
+                <input type="text" id="user-input" class="text_input" placeholder="Type your message here...">
+            </div>
+            <div class="buttons">
+                <button class="btn1" onclick="sendMessage()">Send</button>
+                <button class="btn" onclick="startVoiceCommand()">🎤 Voice Command</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        var audio = document.getElementById('background-audio');
+
+        // Add an event listener for mouse clicks anywhere on the page
+        document.addEventListener('click', function() {
+            // Check if the audio is currently playing
+            if (audio.paused) {
+                audio.play().catch(function(error) {
+                    console.log("Autoplay blocked:", error);
+                });
+            } else {
+                audio.pause();  // Pause the audio if it's playing
+            }
+        });
+        // Function to handle text input and send message
+       // Modify the sendMessage function to send "speak=false" for text inputs
+function sendMessage() {
+    const userInput = document.getElementById("user-input").value.trim();
+    if (!userInput) return; // Avoid empty messages
+
+    const chatOutput = document.getElementById("chat-output");
+    chatOutput.innerHTML += `<p><strong>You:</strong> ${userInput}</p>`;
+    chatOutput.scrollTop = chatOutput.scrollHeight;
+
+    // Send user input to the server with "speak" parameter as "false"
+    fetch("/chat", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: `query=${encodeURIComponent(userInput)}&speak=false` // Speak is set to false
+    })
+    .then(response => response.json())
+    .then(data => {
+        const novaResponse = data.response;
+        chatOutput.innerHTML += `<p><strong>Nova:</strong> ${novaResponse}</p>`;
+        chatOutput.scrollTop = chatOutput.scrollHeight;
+    })
+    .catch(error => console.error("Error:", error));
+
+    document.getElementById("user-input").value = ""; // Clear input field
+}
+
+// Update the voice command function to send "speak=true"
+function startVoiceCommand() {
+    if (!('webkitSpeechRecognition' in window)) {
+        alert("Sorry, your browser does not support speech recognition.");
+        return;
+    }
+
+    const recognition = new webkitSpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+        console.log("Voice recognition started. Speak now...");
+    };
+
+    recognition.onspeechend = function() {
+        recognition.stop();
+    };
+
+    recognition.onresult = function(event) {
+        const userInput = event.results[0][0].transcript;
+        document.getElementById("user-input").value = userInput;
+
+        const chatOutput = document.getElementById("chat-output");
+        chatOutput.innerHTML += `<p><strong>You:</strong> ${userInput}</p>`;
+        chatOutput.scrollTop = chatOutput.scrollHeight;
+
+        // Send the voice input to the server with "speak" parameter as "true"
+        fetch("/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: `query=${encodeURIComponent(userInput)}&speak=true`
+        })
+        .then(response => response.json())
+        .then(data => {
+            const novaResponse = data.response;
+            chatOutput.innerHTML += `<p><strong>Nova:</strong> ${novaResponse}</p>`;
+            chatOutput.scrollTop = chatOutput.scrollHeight;
+        })
+        .catch(error => console.error("Error:", error));
+    };
+
+    recognition.onerror = function(event) {
+        console.error("Speech recognition error:", event.error);
+    };
+
+    recognition.start();
+}
+
+    </script>
+</body>
+</html>
